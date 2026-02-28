@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Resume Wrapper</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<header class="hero">
+  <h1>AI Resume Wrapper</h1>
+  <p>Create ATS-Friendly Professional Resume using AI</p>
+</header>
+
+<section class="container">
+  <form id="resumeForm">
+    <input type="text" id="name" placeholder="Full Name" required />
+    <input type="text" id="role" placeholder="Job Role" required />
+    <textarea id="skills" placeholder="Skills"></textarea>
+    <textarea id="experience" placeholder="Experience"></textarea>
+    <textarea id="education" placeholder="Education"></textarea>
+    <textarea id="projects" placeholder="Projects"></textarea>
+
+    <button type="submit">Generate Resume</button>
+  </form>
+
+  <div id="loading" class="hidden">Generating Resume...</div>
+
+  <div id="result">
+    <h2>Generated Resume</h2>
+    <pre id="resumeOutput"></pre>
+  </div>
+</section>
+
+<script src="script.js"></script>
+</body>
+</html>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f5f7fb;
+  color: #222;
+}
+
+.hero {
+  text-align: center;
+  padding: 40px;
+  background: #111827;
+  color: white;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+  padding: 20px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+input, textarea {
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 14px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+button:hover {
+  background: #1e40af;
+}
+
+#result {
+  margin-top: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+pre {
+  white-space: pre-wrap;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 10px;
+  }
+}
+const form = document.getElementById("resumeForm");
+const output = document.getElementById("resumeOutput");
+const loading = document.getElementById("loading");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  loading.classList.remove("hidden");
+  output.textContent = "";
+
+  const data = {
+    name: document.getElementById("name").value,
+    role: document.getElementById("role").value,
+    skills: document.getElementById("skills").value,
+    experience: document.getElementById("experience").value,
+    education: document.getElementById("education").value,
+    projects: document.getElementById("projects").value
+  };
+
+  try {
+    const res = await fetch("http://localhost:3000/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    loading.classList.add("hidden");
+
+    if (result.resume) {
+      output.textContent = result.resume;
+    } else {
+      output.textContent = "Error generating resume.";
+    }
+
+  } catch (error) {
+    loading.classList.add("hidden");
+    output.textContent = "Server Error";
+  }
+});
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const OpenAI = require("openai");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+app.post("/generate", async (req, res) => {
+  try {
+    const { name, role, skills, experience, education, projects } = req.body;
+
+    const prompt = `
+Create an ATS-friendly professional resume.
+
+Name: ${name}
+Job Role: ${role}
+Skills: ${skills}
+Experience: ${experience}
+Education: ${education}
+Projects: ${projects}
+
+Format professionally with headings.
+`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a professional resume writer." },
+        { role: "user", content: prompt }
+      ]
+    });
+
+    res.json({
+      resume: completion.choices[0].message.content
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Resume generation failed" });
+  }
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+
+{
+  "name": "ai-resume-wrapper",
+  "version": "1.0.0",
+  "description": "AI Resume Builder SaaS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "openai": "^4.56.0"
+  }
+}
+
